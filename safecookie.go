@@ -1,6 +1,23 @@
 // Package safecookie provides secure encoding and decoding for cookies which
 // provides both confidentiality and authenticity against both active and
 // passive attackers.
+//
+// It does so by encrypting cookie's values with an Authenticated Encryption And
+// Data (AEAD) algorithm (e.g. AES-GCM) using a canonicalized form of the
+// cookie's attributes (minus the cookie's value) as authenticated data. This
+// canonicalized form is also used during the decryption process, which will
+// fail if any part of the cookie's value or other attributes have been changed.
+//
+// This provides some important guarantees:
+//
+//     - No one who does not have the secret key can read the cookie's plaintext
+//       value.
+//
+//     - No one who does not have the secret key can create a cookie which will
+//       be considered valid.
+//
+//     - Any cookie which has had any of its attributes modified, including its
+//       value, will be considered invalid.
 package safecookie
 
 import (
