@@ -8,7 +8,13 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"net/http"
+)
+
+var (
+	// ErrInvalidCookie is returned if the cookie is invalid.
+	ErrInvalidCookie = errors.New("invalid cookie")
 )
 
 // Seal encrypts the given cookie's value with the given AEAD, using a
@@ -32,7 +38,7 @@ func Seal(aead cipher.AEAD, c *http.Cookie) error {
 func Open(aead cipher.AEAD, c *http.Cookie) error {
 	b, err := base64.URLEncoding.DecodeString(c.Value)
 	if err != nil {
-		return err
+		return ErrInvalidCookie
 	}
 
 	nonce := b[:aead.NonceSize()]
@@ -40,7 +46,7 @@ func Open(aead cipher.AEAD, c *http.Cookie) error {
 
 	b, err = aead.Open(nil, nonce, ciphertext, canonicalize(c))
 	if err != nil {
-		return err
+		return ErrInvalidCookie
 	}
 
 	c.Value = string(b)

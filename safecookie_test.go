@@ -43,7 +43,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-func TestModifications(t *testing.T) {
+func TestBadAttribute(t *testing.T) {
 	v := "this is a secret"
 
 	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
@@ -71,8 +71,37 @@ func TestModifications(t *testing.T) {
 		t.Fatal("Value didn't change")
 	}
 
-	if err := safecookie.Open(gcm, &c); err == nil {
-		t.Errorf("Was %#v, but expected an error", c)
+	if err := safecookie.Open(gcm, &c); err != safecookie.ErrInvalidCookie {
+		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
+	}
+}
+
+func TestBadEncoding(t *testing.T) {
+	v := "this is a secret"
+
+	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := http.Cookie{
+		Name:     "wingle",
+		Value:    v,
+		Path:     "/",
+		Domain:   "example.com",
+		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
+		Secure:   true,
+		HttpOnly: true,
+	}
+
+	if err := safecookie.Seal(gcm, &c); err != nil {
+		t.Fatal(err)
+	}
+
+	c.Value += "**@3"
+
+	if err := safecookie.Open(gcm, &c); err != safecookie.ErrInvalidCookie {
+		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
 	}
 }
 
