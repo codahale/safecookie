@@ -11,7 +11,7 @@ import (
 func TestRoundTrip(t *testing.T) {
 	v := "this is a secret"
 
-	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	sc, err := safecookie.New([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestRoundTrip(t *testing.T) {
 		HttpOnly: true,
 	}
 
-	if err := safecookie.Seal(gcm, &c); err != nil {
+	if err := sc.Seal(&c); err != nil {
 		t.Fatal(err)
 	}
 
@@ -34,7 +34,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal("Value didn't change")
 	}
 
-	if err := safecookie.Open(gcm, &c); err != nil {
+	if err := sc.Open(&c); err != nil {
 		t.Fatal(err)
 	}
 
@@ -46,7 +46,7 @@ func TestRoundTrip(t *testing.T) {
 func TestBadAttribute(t *testing.T) {
 	v := "this is a secret"
 
-	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	sc, err := safecookie.New([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestBadAttribute(t *testing.T) {
 		HttpOnly: true,
 	}
 
-	if err := safecookie.Seal(gcm, &c); err != nil {
+	if err := sc.Seal(&c); err != nil {
 		t.Fatal(err)
 	}
 
@@ -71,7 +71,7 @@ func TestBadAttribute(t *testing.T) {
 		t.Fatal("Value didn't change")
 	}
 
-	if err := safecookie.Open(gcm, &c); err != safecookie.ErrInvalidCookie {
+	if err := sc.Open(&c); err != safecookie.ErrInvalidCookie {
 		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
 	}
 }
@@ -79,7 +79,7 @@ func TestBadAttribute(t *testing.T) {
 func TestBadEncoding(t *testing.T) {
 	v := "this is a secret"
 
-	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	sc, err := safecookie.New([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,19 +94,19 @@ func TestBadEncoding(t *testing.T) {
 		HttpOnly: true,
 	}
 
-	if err := safecookie.Seal(gcm, &c); err != nil {
+	if err := sc.Seal(&c); err != nil {
 		t.Fatal(err)
 	}
 
 	c.Value += "**@3"
 
-	if err := safecookie.Open(gcm, &c); err != safecookie.ErrInvalidCookie {
+	if err := sc.Open(&c); err != safecookie.ErrInvalidCookie {
 		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
 	}
 }
 
 func BenchmarkSeal(b *testing.B) {
-	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	sc, err := safecookie.New([]byte("yellow submarine"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -126,14 +126,14 @@ func BenchmarkSeal(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		c.Value = v
-		if err := safecookie.Seal(gcm, &c); err != nil {
+		if err := sc.Seal(&c); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
 func BenchmarkOpen(b *testing.B) {
-	gcm, err := safecookie.AESGCM([]byte("yellow submarine"))
+	sc, err := safecookie.New([]byte("yellow submarine"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func BenchmarkOpen(b *testing.B) {
 		Secure:   true,
 		HttpOnly: true,
 	}
-	if err := safecookie.Seal(gcm, &c); err != nil {
+	if err := sc.Seal(&c); err != nil {
 		b.Fatal(err)
 	}
 	v := c.Value
@@ -157,7 +157,7 @@ func BenchmarkOpen(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		c.Value = v
-		if err := safecookie.Open(gcm, &c); err != nil {
+		if err := sc.Open(&c); err != nil {
 			b.Fatal(err)
 		}
 	}
