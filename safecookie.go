@@ -2,11 +2,11 @@
 // provides both confidentiality and authenticity against both active and
 // passive attackers.
 //
-// It does so by encrypting cookie's values with AES-GCM using a canonicalized
-// form of the cookie's attributes (minus the cookie's value) as authenticated
-// data. This canonicalized form is also used during the decryption process,
-// which will fail if any part of the cookie's value or other attributes have
-// been changed.
+// It does so by encrypting a cookie's value with AES-GCM using a canonicalized
+// form of the cookie's attributes (minus the cookie's value) as the
+// authenticated data. This canonicalized form is also used during the
+// decryption process, which will fail if any part of the cookie's value or
+// other attributes have been changed.
 //
 // This provides some important guarantees:
 //
