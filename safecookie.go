@@ -54,9 +54,9 @@ func New(key []byte) (*SafeCookie, error) {
 	return &SafeCookie{gcm: gcm}, nil
 }
 
-// Seal encrypts the given cookie's value with the given AEAD, using a
-// canonicalized version of the cookie's other attributes as authenticated data,
-// and encoding the result as Base64.
+// Seal encrypts the given cookie's value, using a canonicalized version of the
+// cookie's other attributes as authenticated data, and encoding the result as
+// Base64.
 func (sc *SafeCookie) Seal(c *http.Cookie) error {
 	nonce := make([]byte, sc.gcm.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
@@ -70,8 +70,8 @@ func (sc *SafeCookie) Seal(c *http.Cookie) error {
 	return nil
 }
 
-// Open decrypts the given cookie's value with the given AEAD and authenticates
-// the cookie's other attributes.
+// Open decrypts the given cookie's value and authenticates the cookie's other
+// attributes.
 func (sc *SafeCookie) Open(c *http.Cookie) error {
 	b, err := base64.URLEncoding.DecodeString(c.Value)
 	if err != nil {
