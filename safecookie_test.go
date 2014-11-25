@@ -11,7 +11,7 @@ import (
 func TestRoundTrip(t *testing.T) {
 	v := "this is a secret"
 
-	sc, err := safecookie.New([]byte("yellow submarine"))
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestRoundTrip(t *testing.T) {
 func TestBadAttribute(t *testing.T) {
 	v := "this is a secret"
 
-	sc, err := safecookie.New([]byte("yellow submarine"))
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestBadAttribute(t *testing.T) {
 func TestBadEncoding(t *testing.T) {
 	v := "this is a secret"
 
-	sc, err := safecookie.New([]byte("yellow submarine"))
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestBadEncoding(t *testing.T) {
 }
 
 func BenchmarkSeal(b *testing.B) {
-	sc, err := safecookie.New([]byte("yellow submarine"))
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func BenchmarkSeal(b *testing.B) {
 }
 
 func BenchmarkOpen(b *testing.B) {
-	sc, err := safecookie.New([]byte("yellow submarine"))
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		b.Fatal(err)
 	}

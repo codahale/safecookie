@@ -2,7 +2,7 @@
 // provides both confidentiality and authenticity against both active and
 // passive attackers.
 //
-// It does so by encrypting a cookie's value with AES-GCM using a canonicalized
+// It does so by encrypting a cookie's value with an AEAD using a canonicalized
 // form of the cookie's attributes (minus the cookie's value) as the
 // authenticated data. This canonicalized form is also used during the
 // decryption process, which will fail if any part of the cookie's value or
@@ -36,11 +36,14 @@ var (
 
 // SafeCookie seals cookies and opens them.
 type SafeCookie struct {
-	gcm cipher.AEAD
+	// AEAD is the Authenticated Encryption And Data algorithm to use for
+	// encrypting and decrypting cookie values.
+	AEAD cipher.AEAD
 }
 
-// New returns a new SafeCookie instance given a 128-, 192-, or 256-bit key.
-func New(key []byte) (*SafeCookie, error) {
+// NewGCM returns a new AES-GCM-based SafeCookie instance given a 128-, 192-, or
+// 256-bit key.
+func NewGCM(key []byte) (*SafeCookie, error) {
 	b, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -51,19 +54,19 @@ func New(key []byte) (*SafeCookie, error) {
 		return nil, err
 	}
 
-	return &SafeCookie{gcm: gcm}, nil
+	return &SafeCookie{AEAD: gcm}, nil
 }
 
 // Seal encrypts the given cookie's value, using a canonicalized version of the
 // cookie's other attributes as authenticated data, and encoding the result as
 // Base64.
 func (sc *SafeCookie) Seal(c *http.Cookie) error {
-	nonce := make([]byte, sc.gcm.NonceSize())
+	nonce := make([]byte, sc.AEAD.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 
-	ciphertext := sc.gcm.Seal(nonce, nonce, []byte(c.Value), canonicalize(c))
+	ciphertext := sc.AEAD.Seal(nonce, nonce, []byte(c.Value), canonicalize(c))
 
 	c.Value = base64.URLEncoding.EncodeToString(ciphertext)
 
@@ -78,10 +81,10 @@ func (sc *SafeCookie) Open(c *http.Cookie) error {
 		return ErrInvalidCookie
 	}
 
-	nonce := b[:sc.gcm.NonceSize()]
-	ciphertext := b[sc.gcm.NonceSize():]
+	nonce := b[:sc.AEAD.NonceSize()]
+	ciphertext := b[sc.AEAD.NonceSize():]
 
-	b, err = sc.gcm.Open(nil, nonce, ciphertext, canonicalize(c))
+	b, err = sc.AEAD.Open(nil, nonce, ciphertext, canonicalize(c))
 	if err != nil {
 		return ErrInvalidCookie
 	}
