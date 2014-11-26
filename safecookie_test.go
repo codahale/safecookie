@@ -17,13 +17,8 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	c := http.Cookie{
-		Name:     "wingle",
-		Value:    v,
-		Path:     "/",
-		Domain:   "example.com",
-		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
-		Secure:   true,
-		HttpOnly: true,
+		Name:  "wingle",
+		Value: v,
 	}
 
 	if err := sc.Seal(&c); err != nil {
@@ -43,7 +38,7 @@ func TestRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBadAttribute(t *testing.T) {
+func TestBadName(t *testing.T) {
 	v := "this is a secret"
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
@@ -52,13 +47,8 @@ func TestBadAttribute(t *testing.T) {
 	}
 
 	c := http.Cookie{
-		Name:     "wingle",
-		Value:    v,
-		Path:     "/",
-		Domain:   "example.com",
-		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
-		Secure:   true,
-		HttpOnly: true,
+		Name:  "wingle",
+		Value: v,
 	}
 
 	if err := sc.Seal(&c); err != nil {

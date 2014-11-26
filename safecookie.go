@@ -2,11 +2,9 @@
 // provides both confidentiality and authenticity against both active and
 // passive attackers.
 //
-// It does so by encrypting a cookie's value with an AEAD using a canonicalized
-// form of the cookie's attributes (minus the cookie's value) as the
-// authenticated data. This canonicalized form is also used during the
-// decryption process, which will fail if any part of the cookie's value or
-// other attributes have been changed.
+// It does so by sealing a cookie's value with an AEAD using the cookie's name
+// as the authenticated data. If the cookie's name or value change at all, the
+// opening process will fail.
 //
 // This provides some important guarantees:
 //
@@ -16,8 +14,8 @@
 //     - No one who does not have the secret key can create a cookie which will
 //       be considered valid.
 //
-//     - Any cookie which has had any of its attributes modified, including its
-//       value, will be considered invalid.
+//     - Any cookie which has had its name or value changed will be considered
+//       invalid.
 package safecookie
 
 import (
@@ -57,34 +55,31 @@ func NewGCM(key []byte) (*SafeCookie, error) {
 	return &SafeCookie{AEAD: gcm}, nil
 }
 
-// Seal encrypts the given cookie's value, using a canonicalized version of the
-// cookie's other attributes as authenticated data, and encoding the result as
-// Base64.
+// Seal encrypts the given cookie's value, using the cookie's name as
+// authenticated data, and encoding the result as Base64.
 func (sc *SafeCookie) Seal(c *http.Cookie) error {
 	nonce := make([]byte, sc.AEAD.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 
-	ciphertext := sc.AEAD.Seal(nonce, nonce, []byte(c.Value), canonicalize(c))
-
+	ciphertext := sc.AEAD.Seal(nonce, nonce, []byte(c.Value), []byte(c.Name))
 	c.Value = base64.URLEncoding.EncodeToString(ciphertext)
 
 	return nil
 }
 
-// Open decrypts the given cookie's value and authenticates the cookie's other
-// attributes.
+// Open decrypts the given cookie's value and authenticates the cookie's name.
 func (sc *SafeCookie) Open(c *http.Cookie) error {
 	b, err := base64.URLEncoding.DecodeString(c.Value)
-	if err != nil {
+	if err != nil || len(b) <= sc.AEAD.NonceSize() {
 		return ErrInvalidCookie
 	}
 
 	nonce := b[:sc.AEAD.NonceSize()]
 	ciphertext := b[sc.AEAD.NonceSize():]
 
-	b, err = sc.AEAD.Open(nil, nonce, ciphertext, canonicalize(c))
+	b, err = sc.AEAD.Open(nil, nonce, ciphertext, []byte(c.Name))
 	if err != nil {
 		return ErrInvalidCookie
 	}
@@ -92,11 +87,4 @@ func (sc *SafeCookie) Open(c *http.Cookie) error {
 	c.Value = string(b)
 
 	return nil
-}
-
-// canonicalize returns a canonical bitstring of the cookie, minus its value.
-func canonicalize(c *http.Cookie) []byte {
-	e := *c
-	e.Value = ""
-	return []byte(e.String())
 }
