@@ -3,13 +3,12 @@ package safecookie_test
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/codahale/safecookie"
 )
 
 func TestRoundTrip(t *testing.T) {
-	v := "this is a secret"
+	original := "this is a secret"
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
@@ -17,52 +16,58 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	c := http.Cookie{
-		Name:  "wingle",
-		Value: v,
+		Name: "wingle",
 	}
 
-	if err := sc.Seal(&c); err != nil {
+	if err := sc.Seal(original, &c); err != nil {
 		t.Fatal(err)
 	}
 
-	if c.Value == v {
+	if c.Value == original {
 		t.Fatal("Value didn't change")
 	}
 
-	if err := sc.Open(&c); err != nil {
+	var decrypted string
+	if err := sc.Open(&c, &decrypted); err != nil {
 		t.Fatal(err)
 	}
 
-	if c.Value != v {
-		t.Errorf("Was %q, but expected %q", c.Value, v)
+	if decrypted != original {
+		t.Errorf("Was %q, but expected %q", decrypted, original)
 	}
 }
 
 func TestBadName(t *testing.T) {
-	v := "this is a secret"
+	c := http.Cookie{
+		Name:  "wongle",
+		Value: "fZ-1dA9f92eiBRGrgXiECQuFkN1FlwV5tz7yEt4__fCivXZu1zKNUv6vuEnWP4zS",
+	}
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	var v string
+	if err := sc.Open(&c, &v); err != safecookie.ErrInvalidCookie {
+		t.Errorf("Was %#v, but expected ErrInvalidCookie", v)
+	}
+}
+
+func TestBadValue(t *testing.T) {
 	c := http.Cookie{
 		Name:  "wingle",
-		Value: v,
+		Value: "E10jZLr1aq9lcw2nuUMlB6LPYrs-gHAt4JhLvAzi1v2d4Fgfo2R1prLnBup8Qb6d",
 	}
 
-	if err := sc.Seal(&c); err != nil {
+	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	c.Name = "wongle"
-
-	if c.Value == v {
-		t.Fatal("Value didn't change")
-	}
-
-	if err := sc.Open(&c); err != safecookie.ErrInvalidCookie {
-		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
+	var v string
+	if err := sc.Open(&c, &v); err != safecookie.ErrInvalidCookie {
+		t.Errorf("Was %#v, but expected ErrInvalidCookie", v)
 	}
 }
 
@@ -75,22 +80,17 @@ func TestBadEncoding(t *testing.T) {
 	}
 
 	c := http.Cookie{
-		Name:     "wingle",
-		Value:    v,
-		Path:     "/",
-		Domain:   "example.com",
-		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
-		Secure:   true,
-		HttpOnly: true,
+		Name: "wingle",
 	}
 
-	if err := sc.Seal(&c); err != nil {
+	if err := sc.Seal(v, &c); err != nil {
 		t.Fatal(err)
 	}
 
 	c.Value += "**@3"
 
-	if err := sc.Open(&c); err != safecookie.ErrInvalidCookie {
+	var v2 string
+	if err := sc.Open(&c, &v2); err != safecookie.ErrInvalidCookie {
 		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
 	}
 }
@@ -103,12 +103,7 @@ func BenchmarkSeal(b *testing.B) {
 
 	v := "yay for everything which is cool"
 	c := http.Cookie{
-		Name:     "wingle",
-		Path:     "/",
-		Domain:   "example.com",
-		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
-		Secure:   true,
-		HttpOnly: true,
+		Name: "wingle",
 	}
 
 	b.ReportAllocs()
@@ -116,7 +111,7 @@ func BenchmarkSeal(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		c.Value = v
-		if err := sc.Seal(&c); err != nil {
+		if err := sc.Seal(v, &c); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -128,26 +123,22 @@ func BenchmarkOpen(b *testing.B) {
 		b.Fatal(err)
 	}
 
+	v := "yay for everything which is cool"
 	c := http.Cookie{
-		Name:     "wingle",
-		Value:    "yay for everything which is cool",
-		Path:     "/",
-		Domain:   "example.com",
-		Expires:  time.Date(2014, 11, 22, 10, 43, 0, 0, time.UTC),
-		Secure:   true,
-		HttpOnly: true,
+		Name: "wingle",
 	}
-	if err := sc.Seal(&c); err != nil {
+	if err := sc.Seal(v, &c); err != nil {
 		b.Fatal(err)
 	}
-	v := c.Value
+	v = c.Value
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		c.Value = v
-		if err := sc.Open(&c); err != nil {
+		var v2 string
+		if err := sc.Open(&c, &v2); err != nil {
 			b.Fatal(err)
 		}
 	}

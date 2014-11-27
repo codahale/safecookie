@@ -16,13 +16,18 @@
 //
 //     - Any cookie which has had its name or value changed will be considered
 //       invalid.
+//
+// Cookie values are gobs, so be sure to register the types via
+// gob.RegisterType.
 package safecookie
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/gob"
 	"errors"
 	"net/http"
 )
@@ -55,22 +60,30 @@ func NewGCM(key []byte) (*SafeCookie, error) {
 	return &SafeCookie{AEAD: gcm}, nil
 }
 
-// Seal encrypts the given cookie's value, using the cookie's name as
-// authenticated data, and encoding the result as Base64.
-func (sc *SafeCookie) Seal(c *http.Cookie) error {
+// Seal marshals the given value into a gob, encrypts that using the cookie's
+// name as authenticated data, and sets the cookie's value to the Base64-encoded
+// ciphertext.
+func (sc *SafeCookie) Seal(e interface{}, c *http.Cookie) error {
+	w := bytes.NewBuffer(nil)
+	if err := gob.NewEncoder(w).Encode(e); err != nil {
+		return err
+	}
+
 	nonce := make([]byte, sc.AEAD.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 
-	ciphertext := sc.AEAD.Seal(nonce, nonce, []byte(c.Value), []byte(c.Name))
+	ciphertext := sc.AEAD.Seal(nonce, nonce, w.Bytes(), []byte(c.Name))
 	c.Value = base64.URLEncoding.EncodeToString(ciphertext)
 
 	return nil
 }
 
-// Open decrypts the given cookie's value and authenticates the cookie's name.
-func (sc *SafeCookie) Open(c *http.Cookie) error {
+// Open decodes the cookie's value as Base64, decrypts it (authenticating the
+// cookie name), and unmarshals the resulting gob into the given pointer. If the
+// cookie is invalid, it returns ErrInvalidCookie.
+func (sc *SafeCookie) Open(c *http.Cookie, e interface{}) error {
 	b, err := base64.URLEncoding.DecodeString(c.Value)
 	if err != nil || len(b) <= sc.AEAD.NonceSize() {
 		return ErrInvalidCookie
@@ -84,7 +97,5 @@ func (sc *SafeCookie) Open(c *http.Cookie) error {
 		return ErrInvalidCookie
 	}
 
-	c.Value = string(b)
-
-	return nil
+	return gob.NewDecoder(bytes.NewReader(b)).Decode(e)
 }
