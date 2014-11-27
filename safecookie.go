@@ -17,8 +17,7 @@
 //     - Any cookie which has had its name or value changed will be considered
 //       invalid.
 //
-// Cookie values are gobs, so be sure to register the types via
-// gob.RegisterType.
+// Cookie values are gobs, so be sure to register the types via gob.Register.
 package safecookie
 
 import (
