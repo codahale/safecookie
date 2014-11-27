@@ -1,7 +1,6 @@
 package safecookie_test
 
 import (
-	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,9 +15,6 @@ func Example() {
 	type Session struct {
 		UserID int
 	}
-
-	// Register it with encoding/gob.
-	gob.Register(Session{})
 
 	// Create a new SafeCookie instance.
 	sc, _ := safecookie.NewGCM([]byte("yellow submarine"))
@@ -64,13 +60,13 @@ func Example() {
 func TestRoundTrip(t *testing.T) {
 	original := "this is a secret"
 
+	c := http.Cookie{
+		Name: "wingle",
+	}
+
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	c := http.Cookie{
-		Name: "wingle",
 	}
 
 	if err := sc.Seal(original, &c); err != nil {
@@ -92,15 +88,18 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestBadName(t *testing.T) {
-	c := http.Cookie{
-		Name:  "wongle",
-		Value: "fZ-1dA9f92eiBRGrgXiECQuFkN1FlwV5tz7yEt4__fCivXZu1zKNUv6vuEnWP4zS",
-	}
+	c := http.Cookie{Name: "wingle"}
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if err := sc.Seal("this is a secret", &c); err != nil {
+		t.Fatal(err)
+	}
+
+	c.Name = "wongle"
 
 	var v string
 	if err := sc.Open(&c, &v); err != safecookie.ErrInvalidCookie {
@@ -110,14 +109,19 @@ func TestBadName(t *testing.T) {
 
 func TestBadValue(t *testing.T) {
 	c := http.Cookie{
-		Name:  "wingle",
-		Value: "E10jZLr1aq9lcw2nuUMlB6LPYrs-gHAt4JhLvAzi1v2d4Fgfo2R1prLnBup8Qb6d",
+		Name: "wingle",
 	}
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if err := sc.Seal("this is a secret", &c); err != nil {
+		t.Fatal(err)
+	}
+
+	c.Value = "rQ" + c.Value[2:]
 
 	var v string
 	if err := sc.Open(&c, &v); err != safecookie.ErrInvalidCookie {
@@ -126,25 +130,23 @@ func TestBadValue(t *testing.T) {
 }
 
 func TestBadEncoding(t *testing.T) {
-	v := "this is a secret"
+	c := http.Cookie{
+		Name: "wingle",
+	}
 
 	sc, err := safecookie.NewGCM([]byte("yellow submarine"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	c := http.Cookie{
-		Name: "wingle",
-	}
-
-	if err := sc.Seal(v, &c); err != nil {
+	if err := sc.Seal("this is a secret", &c); err != nil {
 		t.Fatal(err)
 	}
 
 	c.Value += "**@3"
 
-	var v2 string
-	if err := sc.Open(&c, &v2); err != safecookie.ErrInvalidCookie {
+	var v string
+	if err := sc.Open(&c, &v); err != safecookie.ErrInvalidCookie {
 		t.Errorf("Was %#v, but expected ErrInvalidCookie", c)
 	}
 }
