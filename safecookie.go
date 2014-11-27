@@ -10,10 +10,8 @@
 //
 //     - No one who does not have the secret key can read the cookie's plaintext
 //       value.
-//
 //     - No one who does not have the secret key can create a cookie which will
 //       be considered valid.
-//
 //     - Any cookie which has had its name or value changed will be considered
 //       invalid.
 //
