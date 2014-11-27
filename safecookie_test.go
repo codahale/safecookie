@@ -1,11 +1,65 @@
 package safecookie_test
 
 import (
+	"encoding/gob"
+	"fmt"
+	"log"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/codahale/safecookie"
 )
+
+func Example() {
+	// Create a cookie struct.
+	type Session struct {
+		UserID int
+	}
+
+	// Register it with encoding/gob.
+	gob.Register(Session{})
+
+	// Create a new SafeCookie instance.
+	sc, _ := safecookie.NewGCM([]byte("yellow submarine"))
+
+	http.HandleFunc("/things", func(w http.ResponseWriter, r *http.Request) {
+		var session Session
+
+		// Extract the cookie.
+		c, err := r.Cookie("session")
+		if err != http.ErrNoCookie {
+			// Open the cookie, if it exists.
+			if err := sc.Open(c, &session); err != nil {
+				panic(err)
+			}
+		}
+
+		// Use the cookie contents.
+		log.Println(session.UserID)
+
+		// Create a new cookie.
+		c = &http.Cookie{
+			Name:     "session",
+			Domain:   "example.com",
+			Path:     "/",
+			Expires:  time.Now().AddDate(0, 0, 30),
+			Secure:   true,
+			HttpOnly: true,
+		}
+
+		// Seal the cookie struct in the cookie.
+		if err := sc.Seal(session, c); err != nil {
+			panic(err)
+		}
+
+		// Set the cookie.
+		http.SetCookie(w, c)
+
+		// And we're done!
+		fmt.Fprintln(w, "Hello, world!")
+	})
+}
 
 func TestRoundTrip(t *testing.T) {
 	original := "this is a secret"
