@@ -21,7 +21,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"net/http"
 )
@@ -54,33 +53,27 @@ func NewGCM(key []byte) (*SafeCookie, error) {
 	return &SafeCookie{AEAD: gcm}, nil
 }
 
-// Seal marshals the given value into a JSON object, encrypts that using the
-// cookie's name as authenticated data, and sets the cookie's value to the
-// Base64-encoded ciphertext.
-func (sc *SafeCookie) Seal(v interface{}, c *http.Cookie) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
+// Seal encrypts the data using the cookie's name as authenticated data, and
+// sets the cookie's value to the Base64-encoded ciphertext.
+func (sc *SafeCookie) Seal(data []byte, c *http.Cookie) error {
 	nonce := make([]byte, sc.AEAD.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
 		return err
 	}
 
-	ciphertext := sc.AEAD.Seal(nonce, nonce, b, []byte(c.Name))
+	ciphertext := sc.AEAD.Seal(nonce, nonce, data, []byte(c.Name))
 	c.Value = base64.URLEncoding.EncodeToString(ciphertext)
 
 	return nil
 }
 
 // Open decodes the cookie's value as Base64, decrypts it (authenticating the
-// cookie name), and unmarshals the resulting JSON object into the given
-// value. If the cookie is invalid, it returns ErrInvalidCookie.
-func (sc *SafeCookie) Open(c *http.Cookie, v interface{}) error {
+// cookie name), and returns the decrypted value. If the cookie is invalid, it
+// returns ErrInvalidCookie.
+func (sc *SafeCookie) Open(c *http.Cookie) ([]byte, error) {
 	b, err := base64.URLEncoding.DecodeString(c.Value)
 	if err != nil || len(b) <= sc.AEAD.NonceSize() {
-		return ErrInvalidCookie
+		return nil, ErrInvalidCookie
 	}
 
 	nonce := b[:sc.AEAD.NonceSize()]
@@ -88,8 +81,8 @@ func (sc *SafeCookie) Open(c *http.Cookie, v interface{}) error {
 
 	b, err = sc.AEAD.Open(nil, nonce, ciphertext, []byte(c.Name))
 	if err != nil {
-		return ErrInvalidCookie
+		return nil, ErrInvalidCookie
 	}
 
-	return json.Unmarshal(b, v)
+	return b, nil
 }
